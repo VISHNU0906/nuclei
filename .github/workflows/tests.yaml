@@ -2,7 +2,7 @@ name: 🔨 Tests
 
 on:
   push:
-    branches: ["dev"]
+    branches: ["dev", "ci-8306-all-os"]
     paths:
       - '**.go'
       - '**.mod'
