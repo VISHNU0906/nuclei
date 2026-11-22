@@ -3,9 +3,6 @@ name: 🔨 Tests
 on:
   push:
     branches: ["dev", "ci-8306-all-os"]
-    paths:
-      - '**.go'
-      - '**.mod'
   pull_request:
     paths:
       - '**.go'
