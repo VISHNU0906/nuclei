@@ -244,11 +244,14 @@ func readChunk(fileName string) ([]byte, error) {
 		_ = r.Close()
 	}()
 
+	// files shorter than the buffer still carry their magic bytes, so keep
+	// what was read instead of treating the short read as a failure
 	var buff [1024]byte
-	if _, err = io.ReadFull(r, buff[:]); err != nil {
+	n, err := io.ReadFull(r, buff[:])
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
 		return nil, err
 	}
-	return buff[:], nil
+	return buff[:n], nil
 }
 
 func (request *Request) isAnyChunkInDenyList(path string, splitWithUtils bool) (string, bool) {

@@ -9,9 +9,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/projectdiscovery/nuclei/v3/internal/tests/testutils"
 	"github.com/projectdiscovery/nuclei/v3/pkg/model"
 	"github.com/projectdiscovery/nuclei/v3/pkg/model/types/severity"
-	"github.com/projectdiscovery/nuclei/v3/internal/tests/testutils"
 	permissionutil "github.com/projectdiscovery/utils/permission"
 )
 
@@ -128,4 +128,44 @@ func TestGetInputPathsStopsOnCallbackError(t *testing.T) {
 	})
 	require.ErrorIs(t, err, context.Canceled)
 	require.Equal(t, 1, seen)
+}
+
+func TestGetInputPathsDeniesMimeTypesOfSmallFiles(t *testing.T) {
+	options := testutils.DefaultOptions
+	testutils.Init(options)
+
+	templateID := "testing-file-deny-mime"
+	request := &Request{
+		ID:         templateID,
+		MaxSize:    "1Gb",
+		MimeType:   true,
+		Extensions: []string{"all"},
+		DenyList:   []string{"image/png"},
+		Operators:  newMockOperator(),
+	}
+	executerOpts := testutils.NewMockExecuterOptions(options, &testutils.TemplateInfo{
+		ID:   templateID,
+		Info: model.Info{SeverityHolder: severity.Holder{Severity: severity.Low}, Name: "test"},
+	})
+	require.NoError(t, request.Compile(executerOpts))
+
+	pngMagic := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+	tempDir := t.TempDir()
+	files := map[string][]byte{
+		"tiny":      pngMagic,
+		"large":     append(append([]byte{}, pngMagic...), make([]byte, 2048)...),
+		"notes.txt": []byte("plain text"),
+		"empty":     {},
+	}
+	for name, data := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(tempDir, name), data, permissionutil.TempFilePermission))
+	}
+
+	got := []string{}
+	err := request.getInputPaths(context.Background(), tempDir, func(item string) error {
+		got = append(got, filepath.Base(item))
+		return nil
+	})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"notes.txt", "empty"}, got, "png files should be denied by mime type whatever their size")
 }

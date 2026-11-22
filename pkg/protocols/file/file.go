@@ -208,7 +208,7 @@ func (request *Request) Compile(options *protocols.ExecutorOptions) error {
 
 func matchAnyMimeTypes(data []byte, mimeTypes []string) bool {
 	for _, mimeType := range mimeTypes {
-		if filetype.Is(data, mimeType) {
+		if filetype.IsMIME(data, mimeType) {
 			return true
 		}
 	}
